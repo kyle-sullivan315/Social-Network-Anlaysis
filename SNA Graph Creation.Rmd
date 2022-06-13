@@ -1,0 +1,64 @@
+---
+title: "Social Network Analysis"
+author: "Kyle Sullivan"
+date: "6/2/2022"
+output: html_document
+---
+Libraries used in this analysis
+```{r}
+library(igraph)
+library(tidyverse)
+library(data.table)
+library(dplyr)
+library(stringr)
+library(readxl)
+```
+
+
+```{r}
+#pdf("SNA visualization.pdf", width = 10, height = 10)
+edges <- master_df
+nodes <- unique(c(edges[,1], edges[,2]))
+nodes <- na.omit(nodes)
+edges <-na.omit(edges)
+SNA <- graph.data.frame(edges, vertices = nodes, directed = FALSE)
+#V(SNA)$label <- ifelse(V(SNA)$name %in% conf_participants, V(SNA)$name, NA)
+V(SNA)$color[V(SNA)$name %in% conf_participants] <- "red"
+V(SNA)$color[V(SNA)$name %notin% conf_participants] <-"grey"
+V(SNA)$size <- log(strength(SNA))
+plot(SNA,
+     vertex.label = NA)
+legend( x= 0.75, y= 1, legend = c("Confrence Attendee", "Collaborator"), pch=21, pt.bg = c("red", "grey"), pt.cex=2, bty="n")
+#dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
