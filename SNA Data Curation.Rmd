@@ -1,0 +1,95 @@
+---
+title: "SNA data curation"
+author: "Kyle Sullivan"
+date: "6/2/2022"
+output: html_document
+---
+
+Libraries used in this analysis
+```{r}
+library(igraph)
+library(tidyverse)
+library(data.table)
+library(dplyr)
+library(stringr)
+library(readxl)
+```
+
+Custom Functions for Later Use
+```{r}
+`%notin%` <- Negate(`%in%`) #custom function to create a not in statement that will return a boolean
+
+#custom function that removes spaces, commas, apostrophes, and dashes from the name 
+simple_name <- function(arg1){
+  
+  arg1 <- gsub(" ", "", arg1)
+  arg1 <- gsub(",", "", arg1)
+  arg1 <- gsub("'", "", arg1)
+  arg1 <- gsub("-", "", arg1)
+  
+  return(arg1)
+}
+```
+
+Data Preparation
+```{r}
+#all the final data will be stored here. 
+master_df <- data.frame("source"=character(),
+                          "target" = character(),
+                          "weight" = integer()
+                          )
+
+#This list of participants allows me to loop through their individual data sets and to color/filter the final SNA visualization
+conf_participants <- read_excel("conf_attendees.xlsx")
+conf_participants <- as.list(conf_participants$Name)
+
+#Each conference participant has their own data set of collaborators. This algorithm is ran on each one in this for loop.
+for (name in conf_participants){
+  current_data_set <- read_excel(paste(name, ".xlsx", sep="",collapse=NULL))
+  current_data_set <- current_data_set[,c("COLLABORATOR", "FYLIST")]          #the only columns i am interested in are the name of the collaborator and the list of years they have collaborated. 
+  colnames(current_data_set) <- c("source","FYs")
+  current_data_set$weight <- 0  #I renamed the columns and added a weight column that will be used later. 
+  
+  
+  #for every collaborator in the data set, I am storing the name on interest, "curr_source" or current source, and I am storing the "test_source" which is the next name in the data frame. I am also simplifying these names using the custom simple_name function    
+  for (collab in 1:nrow(current_data_set)) {
+    curr_source <- paste(simple_name(current_data_set[collab, "source"]), "?", sep="") #here I add a ? to be my regex identifier 
+    test_source <- current_data_set[collab+1, "source"]
+    test_source_simple <- simple_name(test_source)
+    
+    while (like(test_source_simple, curr_source)){ #this like statement and the next will return true if the two names i am comparing are refering to the same person
+      
+      #if my two names are actually the same person, i am going to turn both their collaboration years into lists and combine them
+      if (like(test_source_simple, curr_source)){
+        fy_list1 <- as.list(unlist(strsplit(as.character(current_data_set[collab, "FYs"]), split = "//"))) 
+        fy_list2 <- as.list(unlist(strsplit(as.character(current_data_set[collab + 1, "FYs"]), split = "//")))
+        
+        for (year in fy_list2) {
+          
+          if (year %notin% fy_list1) {
+            current_data_set[collab, "FYs"] <- paste(current_data_set[collab, "FYs"], "//", year, sep="")
+          }
+        }
+        #here I delete the repeated name and move on to the next name in the dataframe, comparing it to my current name.
+        current_data_set <- current_data_set[current_data_set$source != as.character(test_source), ]
+        test_source <- current_data_set[collab+1, "source"]
+        test_source_simple <- simple_name(test_source)
+      }
+    }
+  }
+  
+  #here i turn the list of FYs into a count of collaborations. The orignal list was delimited with //, so i count on // and add one since there is always one less // than year. 
+  for (collab in 1:nrow(current_data_set)) {
+    curr_weight <- current_data_set[collab, "FYs"]
+    curr_weight = lengths(regmatches(curr_weight, gregexpr("//", curr_weight)))
+    curr_weight = curr_weight + 1
+    current_data_set[collab, "weight"] <- curr_weight
+  }
+  
+  #I edit the current data set to match the final destination data set and combine them. 
+  current_data_set$target <- name
+  current_data_set <- current_data_set[, c("source", "target", "weight")]
+  master_df <- bind_rows(master_df, current_data_set)
+}
+
+```
