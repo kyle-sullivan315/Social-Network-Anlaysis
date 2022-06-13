@@ -1,0 +1,146 @@
+Sub sheetPrep()
+
+    Sheets.Add After:=ActiveSheet
+    Sheets("csv-name-set").Select
+    Columns("G:G").Select
+    Selection.Copy
+    Sheets("Sheet1").Select
+    Range("A1").Select
+    ActiveSheet.Paste
+    Sheets("csv-name-set").Select
+    Columns("C:C").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Sheets("Sheet1").Select
+    Columns("C:C").Select
+    ActiveSheet.Paste
+    Selection.Replace What:=", ", Replacement:=",", LookAt:=xlPart, _
+        SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+        ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+    Selection.Replace What:=".", Replacement:="", LookAt:=xlPart, _
+        SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+        ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+    Application.CutCopyMode = False
+    Selection.TextToColumns Destination:=Range("C1"), DataType:=xlDelimited, _
+        TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=False, _
+        Semicolon:=False, Comma:=True, Space:=False, Other:=False, FieldInfo _
+        :=Array(Array(1, 1), Array(2, 1), Array(3, 1), Array(4, 1), Array(5, 1), Array(6, 1), _
+        Array(7, 1), Array(8, 1), Array(9, 1), Array(10, 1), Array(11, 1), Array(12, 1), Array(13, 1 _
+        ), Array(14, 1), Array(15, 1), Array(16, 1), Array(17, 1), Array(18, 1)), _
+        TrailingMinusNumbers:=True
+    Range("B1").Select
+    ActiveCell.FormulaR1C1 = "Target"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "Weight"
+    Range("B2").Select
+Sheets("Sheet1").Select
+    Sheets("Sheet1").Name = "Data"
+End Sub
+
+
+Sub transformSNA()
+
+    RowCount = 0
+    colcount = 0
+    
+    With Worksheets("Data").Range("C2")
+    Do Until Worksheets("data").Range("C2").Offset(RowCount, 0).Value = ""
+        With Worksheets("Data").Range("C2")
+        colcount = 0
+        Do Until .Offset(RowCount, colcount).Value = ""
+            If .Offset(RowCount, colcount).Value <> "" Then
+                colcount = colcount + 1
+            End If
+        Loop
+        
+        For x = 1 To colcount
+            .Offset(RowCount + 1, 0).EntireRow.Select
+            Selection.Insert Shift:=xlDown
+        Next x
+        
+        cell1 = .Offset(RowCount, 0).Address
+        cell2 = .Offset(RowCount, colcount - 1).Address
+        Range(cell1, cell2).Select
+        Selection.Copy
+
+        RowCount = RowCount + 1
+        .Offset(RowCount, 0).PasteSpecial Transpose:=True, skipblanks:=False
+        
+        RowCount = RowCount - 1
+        pubyear = .Offset(RowCount, -2).Value
+        For y = 1 To colcount
+            .Offset(RowCount + 1, -2).Value = pubyear
+            .Offset(RowCount + 1, -1).Value = "name"
+            RowCount = RowCount + 1
+        Next y
+        
+        RowCount = RowCount - colcount
+        .Offset(RowCount, 0).EntireRow.Delete
+        Application.CutCopyMode = False
+        
+        RowCount = RowCount + colcount
+        End With
+    Loop
+    End With
+End Sub
+
+
+Sub addWeight()
+    Range("A1:D1").Select
+    Selection.AutoFilter
+    ActiveWorkbook.Worksheets("Data").AutoFilter.Sort.SortFields.Clear
+    ActiveWorkbook.Worksheets("Data").AutoFilter.Sort.SortFields.Add2 Key:=Range( _
+        "C1"), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:= _
+        xlSortNormal
+    With ActiveWorkbook.Worksheets("Data").AutoFilter.Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    Selection.AutoFilter
+
+    RowCount = 0
+    With Worksheets("Data").Range("C2")
+    Do Until .Offset(RowCount, 0).Value = ""
+        Weight = 1
+        
+        curr_author = .Offset(RowCount, 0).Value
+        Do While .Offset(RowCount + 1, 0).Value = curr_author
+            If .Offset(RowCount + 1, 0).Value = curr_author Then
+                Weight = Weight + 1
+                .Offset(RowCount + 1, 0).EntireRow.Delete
+            End If
+        Loop
+    .Offset(RowCount, 1).Value = Weight
+    RowCount = RowCount + 1
+    Loop
+    End With
+
+End Sub
+
+
+Sub cleanLikeNames()
+
+    RowCount = 0
+    With Worksheets("Data").Range("C2")
+    Do Until .Offset(RowCount, 0).Value = ""
+        curr_author2 = .Offset(RowCount, 0).Value & "?"
+        If .Offset(RowCount + 1, 0).Value Like curr_author2 Then
+            Weight = .Offset(RowCount, 1).Value + .Offset(RowCount + 1, 1).Value
+            .Offset(RowCount, 1).Value = Weight
+            .Offset(RowCount + 1, 0).EntireRow.Delete
+        End If
+        RowCount = RowCount + 1
+     Loop
+     End With
+
+End Sub
+
+Sub SaveData()
+    ChDir _
+        redacted
+    ActiveWorkbook.SaveAs Filename:= _
+        redacted 
+End Sub
